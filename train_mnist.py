@@ -154,7 +154,7 @@ def main():
     trainer.extend(extensions.snapshot(), trigger=(args.epoch, 'epoch'))
 
     # Write a log of evaluation statistics for each epoch
-    trainer.extend(extensions.LogReport())
+    trainer.extend(extensions.LogReport(log_name="%f.log" % args.ber))
 
     # Print selected entries of the log to stdout
     # Here "main" refers to the target link of the "main" optimizer again, and
