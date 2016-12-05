@@ -94,13 +94,11 @@ def main():
                         help='GPU ID (negative value indicates CPU)')
     parser.add_argument('--out', '-o', default='result',
                         help='Directory to output the result')
-    parser.add_argument('--resume', '-r', default='',
-                        help='Resume the training from snapshot')
     parser.add_argument('--unit', '-u', type=int, default=1000,
                         help='Number of units')
+    parser.add_argument('--ber', '-r', type=float, default=0,
+                        help='Bit Error Rate')
     args = parser.parse_args()
-
-    BER = 0.001
 
     print('GPU: {}'.format(args.gpu))
     print('# unit: {}'.format(args.unit))
@@ -126,8 +124,8 @@ def main():
     img_train, img_test = np.split(img, [N])
     label_train, label_test = np.split(label, [N])
 
-    print("inject bit errors. BER: %f" % BER)
-    img_train = inject_error(img_train, BER)
+    print("inject bit errors. BER: %f" % args.ber)
+    img_train = inject_error(img_train, args.ber)
 
     # convert data into float32 (as chainer requires so) after injecting error,
     # otherwise NaNs and INFs are generated and the learning does not work
@@ -169,10 +167,6 @@ def main():
 
     # Print a progress bar to stdout
     trainer.extend(extensions.ProgressBar())
-
-    if args.resume:
-        # Resume from a snapshot
-        chainer.serializers.load_npz(args.resume, trainer)
 
     # Run the training
     trainer.run()
