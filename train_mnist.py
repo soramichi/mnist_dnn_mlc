@@ -8,8 +8,18 @@ import chainer.functions as F
 import chainer.links as L
 from chainer import training
 from chainer.training import extensions
-
 from sklearn.datasets import fetch_mldata
+from PIL import Image
+
+def extract_images(raw_data, out_dir = "./image", sample = 1000):
+    for i in range(0, sample):
+        this_data = raw_data[i]
+        if this_data.shape != (28*28,):
+            print("Error raw_data seems not to be MNIST images.")
+            return
+        
+        img = Image.frombytes(mode="L", size=(28,28), data=this_data.tobytes())
+        img.save("%s/%d.png" % (out_dir, i))
 
 def get_bit(byte, loc):
     return (byte & (1 << loc)) >> loc
@@ -126,6 +136,8 @@ def main():
 
     print("inject bit errors. BER: %f" % args.ber)
     img_train = inject_error(img_train, args.ber)
+
+    #extract_images(img_train)
 
     # convert data into float32 (as chainer requires so) after injecting error,
     # otherwise NaNs and INFs are generated and the learning does not work
