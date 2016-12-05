@@ -58,9 +58,6 @@ def load_data():
     print("fetch MNIST dataset")
     mnist = fetch_mldata('MNIST original', data_home="./data")
     #mnist = fetch_mldata('MNIST', data_home="./data")
-    mnist.data   = mnist.data.astype(np.float32)
-    mnist.data  /= 255
-
     mnist.target = mnist.target.astype(np.int32)
 
     return mnist.data, mnist.target
@@ -131,6 +128,11 @@ def main():
 
     print("inject bit errors. BER: %f" % BER)
     img_train = inject_error(img_train, BER)
+
+    # convert data into float32 (as chainer requires so) after injecting error,
+    # otherwise NaNs and INFs are generated and the learning does not work
+    img_train = img_train.astype(np.float32) / 255
+    img_test  = img_test.astype(np.float32) / 255
 
     train = make_tuple_dataset(img_train, label_train)
     test = make_tuple_dataset(img_test, label_test)
