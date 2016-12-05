@@ -1,13 +1,31 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import argparse
-
+import numpy as np
 import chainer
 import chainer.functions as F
 import chainer.links as L
 from chainer import training
 from chainer.training import extensions
 
+from sklearn.datasets import fetch_mldata
+
+def load_data():
+    print("fetch MNIST dataset")
+    mnist = fetch_mldata('MNIST original', data_home="./data")
+    #mnist = fetch_mldata('MNIST', data_home="./data")
+    mnist.data   = mnist.data.astype(np.float32)
+    mnist.data  /= 255
+
+    mnist.target = mnist.target.astype(np.int32)
+
+    return mnist.data, mnist.target
+
+def make_tuple_dataset(x, y):
+    tuples = []
+    for i in range(0, len(x)):
+        tuples.append((x[i], y[i]))
+    return tuples
 
 # Network definition
 class MLP(chainer.Chain):
@@ -60,8 +78,13 @@ def main():
     optimizer = chainer.optimizers.Adam()
     optimizer.setup(model)
 
-    # Load the MNIST dataset
-    train, test = chainer.datasets.get_mnist()
+    # load data using sklearn.dataset
+    N = 60000
+    img, label = load_data()
+    img_train, img_test = np.split(img, [N])
+    label_train, label_test = np.split(label, [N])
+    train = make_tuple_dataset(img_train, label_train)
+    test = make_tuple_dataset(img_test, label_test)
 
     train_iter = chainer.iterators.SerialIterator(train, args.batchsize)
     test_iter = chainer.iterators.SerialIterator(test, args.batchsize,
