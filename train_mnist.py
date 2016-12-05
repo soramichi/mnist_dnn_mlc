@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import argparse
+import functools
 import numpy as np
 import chainer
 import chainer.functions as F
@@ -9,6 +10,49 @@ from chainer import training
 from chainer.training import extensions
 
 from sklearn.datasets import fetch_mldata
+
+def get_bit(byte, loc):
+    return (byte & (1 << loc)) >> loc
+
+# bit: 1 or 0
+def set_bit(byte, loc, bit):
+    if bit == 1:
+        return (byte | (1 << loc))
+    elif bit == 0:
+        return (byte & ~(1 << loc))
+    else:
+        print("Error: bit argment should be 1 or 0 (%d given)" % bit)
+        raise
+
+def flip_one_bit(byte, loc):
+    target_bit = get_bit(byte, loc)
+    flipped_bit = (~target_bit) & 1
+    ret = set_bit(byte, loc, flipped_bit)
+    return ret
+
+def get_indices(r, shape):
+    ret = ()
+
+    for i in range(0, len(shape)):
+        mul = functools.reduce(lambda x,y: x*y, shape[i+1:], 1)
+        ret += (int(r/mul), )
+        r = int(r % mul)
+
+    return ret
+
+def inject_error(np_array, error_rate):
+    buff = bytearray(np_array.data.tobytes())
+
+    total_bits = len(buff) * 8
+    n_error_bits = int(total_bits * error_rate)
+
+    for _ in range(0, n_error_bits):
+        r = int(np.random.randint(0, total_bits))
+        (pos, bit) = get_indices(r, (len(buff), 8))
+        byte = buff[pos]
+        buff[pos] = flip_one_bit(byte, bit)
+
+    return np.ndarray(shape=np_array.shape, dtype=np_array.dtype, buffer=buff)
 
 def load_data():
     print("fetch MNIST dataset")
@@ -43,7 +87,6 @@ class MLP(chainer.Chain):
         h2 = F.relu(self.l2(h1))
         return self.l3(h2)
 
-
 def main():
     parser = argparse.ArgumentParser(description='Chainer example: MNIST')
     parser.add_argument('--batchsize', '-b', type=int, default=100,
@@ -59,6 +102,8 @@ def main():
     parser.add_argument('--unit', '-u', type=int, default=1000,
                         help='Number of units')
     args = parser.parse_args()
+
+    BER = 0.001
 
     print('GPU: {}'.format(args.gpu))
     print('# unit: {}'.format(args.unit))
@@ -83,6 +128,10 @@ def main():
     img, label = load_data()
     img_train, img_test = np.split(img, [N])
     label_train, label_test = np.split(label, [N])
+
+    print("inject bit errors. BER: %f" % BER)
+    img_train = inject_error(img_train, BER)
+
     train = make_tuple_dataset(img_train, label_train)
     test = make_tuple_dataset(img_test, label_test)
 
